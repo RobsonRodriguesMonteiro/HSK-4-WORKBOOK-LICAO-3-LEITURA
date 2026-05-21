@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK 4 - Reading Simulator - Lição 3</title>
+    <style>
+        :root {
+            /* Background "Água Transparente" */
+            --bg-gradient-1: #e0f8ff; 
+            --bg-gradient-2: #cceeff; 
+            
+            --glass-bg: rgba(255, 255, 255, 0.75); 
+            --glass-border: rgba(255, 255, 255, 0.9);
+            --glass-shadow: 0 10px 30px rgba(0, 100, 150, 0.08);
+            
+            --panel-bg: rgba(255, 255, 255, 0.98); 
+            
+            --text-main: #1e293b; 
+            --text-muted: #475569;
+            
+            --color-primary: #0284c7; 
+            --color-gold: #d97706; 
+            --color-jade: #059669; 
+            
+            /* Cores de feedback - Tons fortes */
+            --color-correct: #065f46; 
+            --color-correct-bg: #d1fae5;
+            --color-correct-border: #10b981;
+            
+            --color-incorrect: #991b1b; 
+            --color-incorrect-bg: #fee2e2;
+            --color-incorrect-border: #ef4444;
+            
+            --border-radius: 16px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
+            color: var(--text-main);
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; overflow: hidden;
+        }
+
+        .simulator-wrapper {
+            display: flex; width: 95vw; height: 95vh; max-width: 1400px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: var(--border-radius);
+            box-shadow: var(--glass-shadow); overflow: hidden; position: relative;
+        }
+
+        /* INSTRUCTIONS MODAL */
+        .info-btn {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--color-primary); border: 1px solid var(--color-primary);
+            width: 36px; height: 36px; border-radius: 50%;
+            font-size: 16px; font-style: italic; font-weight: bold;
+            cursor: pointer; z-index: 50; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .info-btn:hover { background: var(--color-primary); color: #fff; transform: scale(1.05); }
+
+        .modal-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 100; display: none; justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-content {
+            background: var(--panel-bg); padding: 35px; border-radius: var(--border-radius);
+            max-width: 550px; border: 1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            line-height: 1.6;
+        }
+        .modal-content h2 { color: var(--color-primary); margin-top: 0; text-align: center;}
+        .close-modal-btn {
+            background: var(--color-primary); color: white; border: none; padding: 12px 20px;
+            border-radius: 6px; cursor: pointer; margin-top: 20px; width: 100%; font-weight: bold; font-size: 16px; transition: 0.3s;
+        }
+        .close-modal-btn:hover { background: #0369a1; }
+
+        /* LEFT PANEL */
+        .left-panel {
+            width: 260px;
+            flex-shrink: 0; border-right: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px 20px; position: relative;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
+            transition: width 0.3s ease;
+        }
+
+        .left-panel.collapsed { width: 80px; padding: 30px 10px; }
+        .left-panel.collapsed .test-info { display: none; }
+        .left-panel.collapsed .info-btn { position: relative; top: 0; left: 0; margin-top: 20px; }
+
+        .toggle-panel-btn {
+            position: absolute; top: 15px; right: 15px;
+            background: none; border: none; cursor: pointer; color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center;
+            padding: 5px; border-radius: 4px; transition: 0.3s;
+        }
+        .toggle-panel-btn:hover { background: rgba(0,0,0,0.05); color: var(--color-primary); }
+        .left-panel.collapsed .toggle-panel-btn { right: auto; margin-bottom: 20px; position: relative; top: 0;}
+        .left-panel.collapsed .toggle-panel-btn svg { transform: rotate(180deg); }
+
+        .icon-display { margin-bottom: 20px; }
+        .left-panel.collapsed .icon-display { margin-bottom: 10px; width: 35px; height: 35px; }
+
+        .test-info { text-align: center; margin-bottom: 25px; width: 100%; }
+        .test-info .chinese-text { font-size: 26px; margin: 0 0 10px 0; color: var(--color-primary); font-weight: bold; }
+        .test-info .pinyin-display { font-size: 14px; color: var(--color-jade); display: none; }
+
+        /* RIGHT PANEL */
+        .right-panel {
+            flex: 1; display: flex; flex-direction: column; padding: 25px 35px;
+            overflow-y: auto; position: relative;
+        }
+        .right-panel::-webkit-scrollbar { width: 8px; }
+        .right-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
+        .right-panel::-webkit-scrollbar-thumb { background: rgba(2, 132, 199, 0.3); border-radius: 4px; }
+        .right-panel::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; flex-shrink: 0;
+        }
+        .progress-indicator { font-size: 16px; font-weight: bold; color: var(--text-main); }
+        .part-indicator {
+            background: rgba(255, 255, 255, 0.9); padding: 5px 15px; border-radius: 20px;
+            border: 1px solid var(--color-primary); font-size: 14px; font-weight: bold; color: var(--color-primary);
+        }
+
+        /* CONTAINERS */
+        .intro-container, .question-container, .results-container {
+            display: none; flex-direction: column; height: 100%; animation: fadeIn 0.4s ease; overflow-y: auto; padding-right: 5px;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .intro-title {
+            color: var(--color-primary); font-size: 26px; font-weight: bold;
+            border-bottom: 2px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 15px;
+        }
+        .intro-instructions {
+            background: var(--panel-bg); padding: 15px; border-radius: 8px;
+            border-left: 4px solid var(--color-primary); margin-bottom: 20px; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .example-box {
+            background: var(--panel-bg); border: 1px solid rgba(0,0,0,0.05);
+            border-left: 4px solid var(--color-jade); padding: 15px; margin-bottom: 15px; border-radius: 8px;
+        }
+        .example-label { color: var(--color-jade); font-weight: bold; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; }
+
+        .btn-start-part {
+            background: var(--color-primary); color: white; border: none; padding: 12px 25px;
+            border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; margin-bottom: 20px;
+            align-self: center; transition: 0.3s;
+        }
+        .btn-start-part:hover { background: #0369a1; transform: translateY(-2px); }
+
+        /* TEXT DISPLAYS */
+        .text-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .text-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+        .controls-group { display: flex; gap: 8px; }
+        .btn-translate-inline {
+            background: rgba(255, 255, 255, 0.9); border: 1px solid var(--color-primary); color: var(--color-primary);
+            padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn-translate-inline:hover { background: var(--color-primary); color: #fff; }
+
+        .translation-display {
+            color: var(--color-gold); margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(217, 119, 6, 0.3);
+            font-size: 15px; display: none; line-height: 1.5; font-weight: 500;
+        }
+
+        .instruction-block {
+            margin-bottom: 15px; background: var(--panel-bg); padding: 12px 15px; border-radius: var(--border-radius);
+            border-left: 4px solid var(--color-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .text-block {
+            margin-bottom: 15px; background: var(--panel-bg); padding: 18px; border-radius: var(--border-radius);
+            border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+
+        .chinese-text { font-size: 22px; line-height: 1.8; color: var(--text-main); }
+        .char-interactive { cursor: pointer; display: inline; transition: 0.2s; border-radius: 4px; }
+        .char-interactive:hover { color: var(--color-primary); background-color: #e0f2fe; }
+
+        .pinyin-display {
+            font-size: 16px; color: var(--color-jade); margin-top: 10px; line-height: 1.4;
+            display: none; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1);
+        }
+
+        /* READING MECHANICS UI */
+        .option-wrapper {
+            background: var(--panel-bg); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+            margin-bottom: 10px; padding: 12px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s;
+        }
+        .option-wrapper.locked { pointer-events: none; }
+
+        .word-bank-item, .order-item, .mcq-option {
+            cursor: pointer; font-size: 18px; display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; border-radius: 6px;
+        }
+        .option-content { display: inline; word-break: keep-all; line-height: 1.5; }
+        .word-bank-item:hover, .order-item:hover, .mcq-option:hover { color: var(--color-primary); }
+
+        .option-wrapper.selected { border-color: var(--color-primary); background-color: #f0f9ff; font-weight: 500; }
+
+        .option-wrapper.is-correct {
+            border-color: var(--color-correct-border) !important; 
+            background-color: var(--color-correct-bg) !important; 
+            box-shadow: inset 0 0 0 2px var(--color-correct-border) !important;
+        }
+        .option-wrapper.is-correct .word-bank-item, .option-wrapper.is-correct .order-item, .option-wrapper.is-correct .mcq-option,
+        .option-wrapper.is-correct .chinese-text, .option-wrapper.is-correct .option-content, .option-wrapper.is-correct .char-interactive {
+            color: var(--color-correct) !important; font-weight: bold;
+        }
+        
+        .option-wrapper.is-incorrect {
+            border-color: var(--color-incorrect-border) !important; 
+            background-color: var(--color-incorrect-bg) !important; 
+            box-shadow: inset 0 0 0 1px var(--color-incorrect-border) !important;
+        }
+        .option-wrapper.is-incorrect .word-bank-item, .option-wrapper.is-incorrect .order-item, .option-wrapper.is-incorrect .mcq-option,
+        .option-wrapper.is-incorrect .chinese-text, .option-wrapper.is-incorrect .option-content, .option-wrapper.is-incorrect .char-interactive {
+            color: var(--color-incorrect) !important; text-decoration: line-through; text-decoration-color: var(--color-incorrect);
+        }
+        
+        .fill-blank-slot {
+            display: inline-block; width: 80px; height: 32px; border-bottom: 2px solid var(--color-primary);
+            text-align: center; color: var(--color-primary); font-weight: bold; font-size: 20px;
+            vertical-align: middle; cursor: pointer; background: #f0f9ff; transition: 0.2s; border-radius: 4px 4px 0 0;
+        }
+        .fill-blank-slot.is-correct {
+            color: var(--color-correct) !important; border-color: var(--color-correct) !important; background-color: var(--color-correct-bg) !important;
+        }
+        .fill-blank-slot.is-incorrect {
+            color: var(--color-incorrect) !important; border-color: var(--color-incorrect) !important; background-color: var(--color-incorrect-bg) !important;
+        }
+
+        .order-letter { font-weight: bold; color: inherit; font-size: 18px;}
+
+        .order-sequence {
+            display: flex; gap: 10px; margin-top: 15px; align-items: center; background: var(--panel-bg);
+            padding: 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);
+        }
+        .seq-box {
+            width: 45px; height: 45px; border: 2px dashed #94a3b8; border-radius: 6px; display: flex; justify-content: center; align-items: center;
+            font-size: 20px; font-weight: bold; color: var(--color-primary); background: rgba(255, 255, 255, 0.8);
+        }
+        .seq-box.filled { border-style: solid; background: #e0f2fe; }
+        .seq-box.is-correct { border-style: solid; border-color: var(--color-correct); background: var(--color-correct-bg); color: var(--color-correct);}
+        .seq-box.is-incorrect { border-style: solid; border-color: var(--color-incorrect); background: var(--color-incorrect-bg); color: var(--color-incorrect);}
+
+        /* SUPPORT CONTROLS */
+        .support-controls { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border); }
+
+        .support-btn {
+            background: rgba(255, 255, 255, 0.9); color: var(--text-main); border: 1px solid var(--glass-border);
+            padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .support-btn:hover { background: #fff; border-color: var(--color-primary); transform: translateY(-1px);}
+
+        .btn-check { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+        .btn-check:hover:not(:disabled) { background: #0369a1; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);}
+        .btn-check:disabled { opacity: 0.6; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8; box-shadow: none; transform: none;}
+
+        .btn-explanation { background: var(--color-gold); border-color: var(--color-gold); color: white; display: none; }
+        .btn-explanation:hover { background: #b45309; }
+
+        .btn-reset-small { background: transparent; color: var(--text-muted); border: 1px solid #cbd5e1; font-size: 12px; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        .btn-reset-small:hover { background: rgba(255,255,255,0.9); color: var(--text-main); }
+
+        .explanation-box {
+            background: var(--panel-bg); border: 1px solid rgba(0,0,0,0.05); border-left: 4px solid var(--color-gold);
+            padding: 18px; border-radius: 4px 8px 8px 4px; margin-top: 15px; display: none; line-height: 1.6; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .explanation-box h4 { margin: 0 0 10px 0; color: var(--color-gold); font-size: 17px;}
+
+        /* NAVIGATION */
+        .navigation {
+            display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px;
+            border-top: 1px solid var(--glass-border); flex-wrap: wrap; gap: 8px; flex-shrink: 0;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.8); border: 1px solid var(--color-primary); color: var(--color-primary);
+            padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.3s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .nav-btn:hover:not(:disabled) { background: var(--color-primary); color: white; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2); }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #cbd5e1; color: #64748b; background: transparent;}
+        
+        .nav-part-btn { background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; }
+
+        /* RESULTS SCREEN */
+        .results-summary {
+            background: var(--panel-bg); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px;
+            text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .results-score { font-size: 38px; color: var(--color-primary); font-weight: bold; margin: 10px 0; }
+        .results-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .result-item {
+            background: var(--panel-bg); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between;
+            align-items: center; border: 1px solid rgba(0,0,0,0.05); border-left: 4px solid #cbd5e1;
+        }
+        .result-item.correct { border-left-color: var(--color-correct); }
+        .result-item.incorrect { border-left-color: var(--color-incorrect); }
+        .result-item.unanswered { border-left-color: var(--color-gold); }
+        .result-icon { display: flex; align-items: center; gap: 5px; }
+
+        /* TOOLTIP */
+        #tooltip {
+            position: fixed; background: #ffffff; border: 1px solid var(--color-primary); padding: 12px;
+            border-radius: 8px; pointer-events: none; z-index: 1000; display: none; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            min-width: 160px; max-width: 280px;
+        }
+        .tt-word { text-align: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;}
+        .tt-pinyin { color: var(--color-primary); font-size: 18px; font-weight: bold; margin-bottom: 4px;}
+        .tt-trans { color: var(--color-gold); font-size: 14px; font-weight: bold;}
+        .tt-chars { display: flex; flex-direction: column; gap: 5px; }
+        .tt-char-item { font-size: 13px; color: var(--text-muted); display: flex; gap: 8px; align-items: baseline; }
+        .tt-char-item strong { color: var(--text-main); font-size: 16px; }
+        .tt-char-item span { color: var(--color-jade); font-size: 12px;}
+
+        /* RESPONSIVENESS */
+        @media (max-width: 900px) {
+            .simulator-wrapper { flex-direction: column; height: 100vh; width: 100vw; border-radius: 0; border: none; }
+            .left-panel { width: 100% !important; flex-direction: row; padding: 12px 20px; border-right: none; border-bottom: 1px solid var(--glass-border); justify-content: flex-start; gap: 15px; }
+            .toggle-panel-btn { display: none; }
+            .info-btn { top: 12px; left: auto; right: 20px; width: 35px; height: 35px; margin-top: 0 !important; }
+            .icon-display { width: 40px; height: 40px; margin-bottom: 0; }
+            .test-info { text-align: left; margin-bottom: 0; display: flex; flex-direction: column; align-items: flex-start; display: block !important;}
+            .test-info .chinese-text { font-size: 20px; margin: 0; }
+            .right-panel { flex: 1; padding: 15px 20px; }
+            .support-controls { justify-content: center; flex-wrap: wrap;}
+            .btn-check, .btn-explanation { width: 100%; text-align: center; justify-content: center; }
+            .navigation { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="simulator-wrapper">
+        <!-- LEFT PANEL -->
+        <div class="left-panel" id="left-panel">
+            <button class="toggle-panel-btn" id="toggle-panel-btn" title="Minimizar/Expandir">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </button>
+            <button class="info-btn" id="btn-info">i</button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="65" height="65" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-display">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            <div class="test-info">
+                <div class="chinese-text" id="title-main"></div>
+                <div class="pinyin-display" id="title-main-py"></div>
+                <div class="chinese-text" style="font-size: 18px; margin-top: 10px;" id="title-sub"></div>
+                <div class="pinyin-display" style="font-size: 14px;" id="title-sub-py"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel" id="interaction-area">
+            <div class="header-bar">
+                <div class="progress-indicator" id="progress-text"></div>
+                <div class="part-indicator" id="part-text"></div>
+            </div>
+
+            <!-- INTRO SCREEN -->
+            <div class="intro-container" id="intro-screen">
+                <div class="intro-title chinese-text" id="intro-title-text"></div>
+                <div class="pinyin-display" id="intro-title-pinyin"></div>
+                
+                <div class="intro-instructions chinese-text" style="font-size: 20px;" id="intro-instructions-text"></div>
+                <div class="pinyin-display" id="intro-instructions-pinyin"></div>
+
+                <div id="intro-examples-area"></div>
+                <button class="btn-start-part" id="btn-start-part">Começar Exercícios</button>
+            </div>
+
+            <!-- QUESTION SCREEN -->
+            <div class="question-container" id="question-screen">
+                
+                <!-- INSTRUCTION BLOCK -->
+                <div class="instruction-block" id="instruction-block">
+                    <div class="text-block-header">
+                        <div class="text-label" style="color: var(--color-primary);">Instrução</div>
+                        <div class="controls-group">
+                            <button class="btn-translate-inline" onclick="toggleDisplay('instruction-pinyin')">Pīnyīn</button>
+                            <button class="btn-translate-inline" onclick="toggleDisplay('instruction-trans')">A/文 Tradução</button>
+                        </div>
+                    </div>
+                    <div class="chinese-text" style="font-size: 18px;" id="instruction-chars"></div>
+                    <div class="pinyin-display" id="instruction-pinyin"></div>
+                    <div class="translation-display" id="instruction-trans"></div>
+                </div>
+
+                <!-- READING PASSAGE (Para Part 3) -->
+                <div class="text-block" id="passage-block" style="display: none;">
+                    <div class="text-block-header">
+                        <div class="text-label">Texto Base</div>
+                        <div class="controls-group">
+                            <button class="btn-translate-inline" onclick="toggleDisplay('passage-pinyin')">Pīnyīn</button>
+                            <button class="btn-translate-inline" onclick="toggleDisplay('passage-trans')">A/文 Tradução</button>
+                        </div>
+                    </div>
+                    <div class="chinese-text" id="passage-chars"></div>
+                    <div class="pinyin-display" id="passage-pinyin"></div>
+                    <div class="translation-display" id="passage-trans"></div>
+                </div>
+
+                <!-- QUESTION TEXT -->
+                <div class="text-block" id="question-block">
+                    <div class="text-block-header">
+                        <div class="text-label" id="question-label">Questão</div>
+                        <div class="controls-group">
+                            <button class="btn-translate-inline" onclick="toggleDisplay('question-pinyin')">Pīnyīn</button>
+                            <button class="btn-translate-inline" onclick="toggleDisplay('question-trans')">A/文 Tradução</button>
+                        </div>
+                    </div>
+                    <div class="chinese-text" id="question-chars"></div>
+                    <div class="pinyin-display" id="question-pinyin"></div>
+                    <div class="translation-display" id="question-trans"></div>
+                </div>
+
+                <!-- DYNAMIC OPTIONS AREA (Fill, Order, MCQ) -->
+                <div id="dynamic-options-area"></div>
+
+                <!-- EXPLANATION -->
+                <div class="explanation-box" id="explanation-display"></div>
+
+                <!-- SUPPORT CONTROLS -->
+                <div class="support-controls">
+                    <button class="support-btn btn-explanation" id="btn-show-explanation">Ver Explicação</button>
+                    <button class="support-btn btn-check" id="btn-check-answer">Checar Resposta</button>
+                </div>
+            </div>
+
+            <!-- RESULTS SCREEN -->
+            <div class="results-container" id="results-screen">
+                <h2 class="chinese-text" style="color: var(--color-primary); text-align: center; font-size: 28px;">Resultado Final</h2>
+                
+                <div class="results-summary">
+                    <div style="font-size: 16px; color: var(--text-main);">Você acertou</div>
+                    <div class="results-score" id="results-score-text">0 / 21</div>
+                    <div style="font-size: 14px; color: var(--text-muted);" id="results-percentage">0% de aproveitamento</div>
+                </div>
+
+                <div class="text-label" style="margin-bottom: 8px;">Resumo das Questões</div>
+                <div class="results-list" id="results-list"></div>
+                
+                <button class="btn-start-part" onclick="location.reload()" style="margin-top: 20px;">Refazer Teste</button>
+            </div>
+
+            <!-- NAVIGATION -->
+            <div class="navigation" id="navigation-bar">
+                <button class="nav-btn nav-part-btn" id="btn-prev-part">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                    Parte Anterior
+                </button>
+                <button class="nav-btn" id="btn-prev">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                    Anterior
+                </button>
+                <button class="nav-btn" id="btn-next">
+                    Próximo
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button class="nav-btn nav-part-btn" id="btn-next-part">
+                    Próxima Parte
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFO -->
+    <div class="modal-overlay" id="info-modal">
+        <div class="modal-content">
+            <h2>Instruções de Interatividade</h2>
+            <p>Este simulador de leitura do HSK 4 possui as seguintes ferramentas:</p>
+            <ul>
+                <li><strong>Clique Esquerdo no Caractere:</strong> Exibe a palavra completa (Pinyin e Tradução), além da tradução de cada caractere individual.</li>
+                <li><strong>Clique Direito no Caractere:</strong> Oculta o Pinyin e exibe <em>apenas a tradução</em>, treinando leitura direta.</li>
+                <li><strong>Botões (Pīnyīn) e (A/文):</strong> Exibem o Pinyin ou a tradução em português de forma separada para cada trecho ou frase.</li>
+            </ul>
+            <button class="close-modal-btn" id="btn-close-modal">Entendi, começar!</button>
+        </div>
+    </div>
+
+    <!-- TOOLTIP -->
+    <div id="tooltip">
+        <div class="tt-word">
+            <div class="tt-pinyin" id="tt-pinyin-text"></div>
+            <div class="tt-trans" id="tt-trans-text"></div>
+        </div>
+        <div class="tt-chars" id="tt-chars-breakdown"></div>
+    </div>
+
+    <script>
+        // --- DICTIONARIES (Updated with Lesson 3 Vocabulary) ---
+        const wordsDict = {
+            "自然": {p: "zìrán", t: "natural/naturalmente"}, "缺点": {p: "quēdiǎn", t: "defeito"},
+            "互相": {p: "hùxiāng", t: "mutuamente"}, "生活": {p: "shēnghuó", t: "vida/viver"},
+            "最好": {p: "zuìhǎo", t: "melhor"}, "影响": {p: "yǐngxiǎng", t: "influenciar/afetar"}, 
+            "健康": {p: "jiànkāng", t: "saúde/saudável"}, "熟悉": {p: "shúxi", t: "familiarizado"}, 
+            "介绍": {p: "jièshào", t: "apresentar"}, "聪明": {p: "cōngming", t: "inteligente"}, 
+            "吸引": {p: "xīyǐn", t: "atrair"}, "认为": {p: "rènwéi", t: "achar/considerar"}, 
+            "可爱": {p: "kě'ài", t: "fofo/amável"}, "幸福": {p: "xìngfú", t: "felicidade/feliz"}, 
+            "干净": {p: "gānjìng", t: "limpo"}, "联系": {p: "liánxì", t: "entrar em contato"},
+            "及时": {p: "jíshí", t: "oportuno/a tempo"}, "适应": {p: "shìyìng", t: "adaptar-se"}, 
+            "差不多": {p: "chàbuduō", t: "quase/aproximadamente"}, "聚会": {p: "jùhuì", t: "encontro/festa"}, 
+            "毕业": {p: "bìyè", t: "formar-se/graduar-se"}, "真正": {p: "zhēnzhèng", t: "verdadeiro"}, 
+            "丰富": {p: "fēngfù", t: "rico/abundante"}, "讨厌": {p: "tǎoyàn", t: "odiar/detestar"},
+            "周围": {p: "zhōuwéi", t: "ao redor"}, "交流": {p: "jiāoliú", t: "comunicar/interagir"},
+            "理解": {p: "lǐjiě", t: "compreender"}, "困难": {p: "kùnnan", t: "dificuldade/difícil"}, 
+            "帮助": {p: "bāngzhù", t: "ajudar"}, "改变": {p: "gǎibiàn", t: "mudar/alterar"}, 
+            "遇到": {p: "yùdào", t: "encontrar"}, "脾气": {p: "píqi", t: "temperamento"}, 
+            "问题": {p: "wèntí", t: "problema/questão"}, "时间": {p: "shíjiān", t: "tempo"}, 
+            "别人": {p: "biérén", t: "outras pessoas"}, "如果": {p: "rúguǒ", t: "se"}, 
+            "朋友": {p: "péngyǒu", t: "amigo"}, "经常": {p: "jīngcháng", t: "frequentemente"}, 
+            "发现": {p: "fāxiàn", t: "descobrir"}, "自己": {p: "zìjǐ", t: "si mesmo"}, 
+            "大家": {p: "dàjiā", t: "todos"},
+            // Lesson 3 Specific Additions:
+            "能力": {p: "nénglì", t: "capacidade"}, "通知": {p: "tōngzhī", t: "aviso/avisar"},
+            "坚持": {p: "jiānchí", t: "insistir/persistir"}, "首先": {p: "shǒuxiān", t: "primeiramente"},
+            "安排": {p: "ānpái", t: "organizar/arranjar"}, "准时": {p: "zhǔnshí", t: "pontual"},
+            "温度": {p: "wēndù", t: "temperatura"}, "正式": {p: "zhèngshì", t: "formal/oficial"},
+            "服务员": {p: "fúwùyuán", t: "garçom/garçonete"}, "印象": {p: "yìnxiàng", t: "impressão"},
+            "信心": {p: "xìnxīn", t: "confiança"}, "会议": {p: "huìyì", t: "reunião/conferência"},
+            "提高": {p: "tígāo", t: "elevar/melhorar"}, "迟到": {p: "chídào", t: "atrasar-se"},
+            "要求": {p: "yāoqiú", t: "exigir/requisito"}, "满意": {p: "mǎnyì", t: "satisfeito"},
+            "手机": {p: "shǒujī", t: "celular"}, "律师": {p: "lǜshī", t: "advogado"},
+            "应聘": {p: "yìngpìn", t: "candidatar-se (a emprego)"}, "笔试": {p: "bǐshì", t: "prova escrita"},
+            "面试": {p: "miànshì", t: "entrevista"}, "适合": {p: "shìhé", t: "adequado/servir"},
+            "紧张": {p: "jǐnzhāng", t: "nervoso/tenso"}, "招聘会": {p: "zhāopìnhuì", t: "feira de empregos"},
+            "院长": {p: "yuànzhǎng", t: "diretor (de hospital/faculdade)"}, "医院": {p: "yīyuàn", t: "hospital"},
+            "实际": {p: "shíjì", t: "realidade/prático"}, "一般": {p: "yìbān", t: "geralmente/comum"},
+            "情况": {p: "qíngkuàng", t: "situação"}, "因此": {p: "yīncǐ", t: "portanto"},
+            "认真": {p: "rènzhēn", t: "sério/aplicado"}, "选择": {p: "xuǎnzé", t: "escolher/opção"},
+            "兴趣": {p: "xìngqù", t: "interesse"}, "最终": {p: "zuìzhōng", t: "finalmente"},
+            "接受": {p: "jiēshòu", t: "aceitar"}, "完全": {p: "wánquán", t: "completamente"}
+        };
+
+        const charDict = {
+            "自": {p: "zì", t: "si mesmo"}, "然": {p: "rán", t: "assim/correto"}, "缺": {p: "quē", t: "faltar"}, 
+            "联": {p: "lián", t: "unir/juntar"}, "系": {p: "xì", t: "sistema/ligar"}, "及": {p: "jí", t: "alcançar"},
+            "不": {p: "bù", t: "não"}, "多": {p: "duō", t: "muito"}, "逛": {p: "guàng", t: "passear"},
+            "陪": {p: "péi", t: "acompanhar"}, "而": {p: "ér", t: "mas/e"}, "聚": {p: "jù", t: "reunir"},
+            "能": {p: "néng", t: "poder/capacidade"}, "力": {p: "lì", t: "força"}, "通": {p: "tōng", t: "passar/comunicar"},
+            "知": {p: "zhī", t: "saber"}, "留": {p: "liú", t: "deixar/ficar"}, "坚": {p: "jiān", t: "firme"},
+            "持": {p: "chí", t: "segurar/manter"}, "首": {p: "shǒu", t: "cabeça/primeiro"}, "先": {p: "xiān", t: "antes/primeiro"},
+            "安": {p: "ān", t: "paz/seguro"}, "排": {p: "pái", t: "organizar/fileira"}, "准": {p: "zhǔn", t: "exato/permitir"},
+            "时": {p: "shí", t: "tempo/hora"}, "温": {p: "wēn", t: "morno/temperatura"}, "度": {p: "dù", t: "grau"},
+            "挺": {p: "tǐng", t: "muito/suportar"}, "正": {p: "zhèng", t: "reto/oficial"}, "式": {p: "shì", t: "estilo/formato"},
+            "印": {p: "yìn", t: "imprimir/marca"}, "象": {p: "xiàng", t: "elefante/imagem"}, "信": {p: "xìn", t: "carta/acreditar"},
+            "心": {p: "xīn", t: "coração"}, "会": {p: "huì", t: "reunião/poder"}, "议": {p: "yì", t: "discutir"},
+            "提": {p: "tí", t: "levantar/mencionar"}, "高": {p: "gāo", t: "alto"}, "迟": {p: "chí", t: "tarde/atrasado"},
+            "到": {p: "dào", t: "chegar"}, "要": {p: "yào", t: "querer/exigir"}, "求": {p: "qiú", t: "pedir"},
+            "满": {p: "mǎn", t: "cheio/satisfeito"}, "意": {p: "yì", t: "significado/intenção"}, "手": {p: "shǒu", t: "mão"},
+            "机": {p: "jī", t: "máquina"}, "律": {p: "lǜ", t: "lei"}, "师": {p: "shī", t: "mestre"},
+            "应": {p: "yìng", t: "responder"}, "聘": {p: "pìn", t: "contratar"}, "笔": {p: "bǐ", t: "caneta"},
+            "试": {p: "shì", t: "testar"}, "面": {p: "miàn", t: "rosto/macarrão"}, "紧": {p: "jǐn", t: "apertado/tenso"},
+            "张": {p: "zhāng", t: "esticar/classificador"}, "招": {p: "zhāo", t: "recrutar"}, "院": {p: "yuàn", t: "pátio/instituição"},
+            "长": {p: "zhǎng", t: "crescer/chefe"}, "医": {p: "yī", t: "médico"}, "穷": {p: "qióng", t: "pobre"},
+            "富": {p: "fù", t: "rico"}
+        };
+
+        const questionsData = [
+            // ================= PARTE 1.A (Q23-Q26) =================
+            {
+                id: 'intro1a', type: 'intro', part: 1,
+                title: "第一部分",
+                titlePinyin: "Dì-yī bùfèn",
+                instructions: "第 23 到 26 题：选词填空。",
+                instructionsPinyin: "Dì 23 dào 26 tí: Xuǎncí tiánkòng.",
+                examples: [
+                    {
+                        text: "选项 (Opções): A 能力  B 通知  C 留  D 坚持  E 首先",
+                        pinyin: "Xuǎnxiàng: A nénglì  B tōngzhī  C liú  D jiānchí  E shǒuxiān",
+                        trans: "A Capacidade  B Aviso/Avisar  C Deixar/Ficar  D Persistir  E Primeiramente",
+                        q: "例如：她每天都（ D ）走路上下班，所以身体一直很不错。",
+                        qPinyin: "Lìrú: Tā měitiān dōu ( D ) zǒulù shàng xiàbān, suǒyǐ shēntǐ yìzhí hěn búcuò.",
+                        qTrans: "Exemplo: Todos os dias ela ( D persiste em ) caminhar para ir e voltar do trabalho, por isso a saúde dela sempre foi muito boa.",
+                        ans: "D"
+                    }
+                ]
+            },
+            {
+                id: 23, part: 1, type: "fill",
+                instructionChar: "第 23 到 26 题：选词填空。", instructionPinyin: "Dì 23 dào 26 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 23 a 26: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 能力", "B 通知", "C 留", "D 坚持", "E 首先"],
+                optionsBankPinyin: ["A nénglì", "B tōngzhī", "C liú", "D jiānchí", "E shǒuxiān"],
+                optionsBankTrans: ["A Capacidade", "B Aviso/Avisar", "C Deixar/Ficar", "D Persistir", "E Primeiramente"],
+                qChar: "23. 那位女服务员给我们（ [BLANK] ）下了很深的印象。",
+                qPinyin: "23. Nà wèi nǚ fúwùyuán gěi wǒmen ( [BLANK] ) xià le hěn shēn de yìnxiàng.",
+                qTrans: "23. Aquela garçonete nos ( C deixou ) uma impressão muito profunda.",
+                correctAnswer: "C",
+                explanation: "留 (liú) significa 'deixar'. A expressão '留下印象' significa 'deixar uma impressão'."
+            },
+            {
+                id: 24, part: 1, type: "fill",
+                instructionChar: "第 23 到 26 题：选词填空。", instructionPinyin: "Dì 23 dào 26 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 23 a 26: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 能力", "B 通知", "C 留", "D 坚持", "E 首先"],
+                optionsBankPinyin: ["A nénglì", "B tōngzhī", "C liú", "D jiānchí", "E shǒuxiān"],
+                optionsBankTrans: ["A Capacidade", "B Aviso/Avisar", "C Deixar/Ficar", "D Persistir", "E Primeiramente"],
+                qChar: "24. 不管别人怎么说，（ [BLANK] ）你要对自己有信心。",
+                qPinyin: "24. Bùguǎn biérén zěnme shuō, ( [BLANK] ) nǐ yào duì zìjǐ yǒu xìnxīn.",
+                qTrans: "24. Não importa o que os outros digam, ( E primeiramente ) você precisa ter confiança em si mesmo.",
+                correctAnswer: "E",
+                explanation: "首先 (shǒuxiān) significa 'primeiramente' ou 'antes de tudo'. É usado aqui para dar prioridade à autoconfiança."
+            },
+            {
+                id: 25, part: 1, type: "fill",
+                instructionChar: "第 23 到 26 题：选词填空。", instructionPinyin: "Dì 23 dào 26 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 23 a 26: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 能力", "B 通知", "C 留", "D 坚持", "E 首先"],
+                optionsBankPinyin: ["A nénglì", "B tōngzhī", "C liú", "D jiānchí", "E shǒuxiān"],
+                optionsBankTrans: ["A Capacidade", "B Aviso/Avisar", "C Deixar/Ficar", "D Persistir", "E Primeiramente"],
+                qChar: "25. 会议改到明天下午两点半开，你去（ [BLANK] ）一下班里的其他人。",
+                qPinyin: "25. Huìyì gǎi dào míngtiān xiàwǔ liǎng diǎn bàn kāi, nǐ qù ( [BLANK] ) yíxià bān lǐ de qítā rén.",
+                qTrans: "25. A reunião foi alterada para amanhã às duas e meia da tarde, vá ( B avisar ) as outras pessoas da equipe.",
+                correctAnswer: "B",
+                explanation: "通知 (tōngzhī) funciona como verbo aqui, significando 'avisar' ou 'notificar' as outras pessoas sobre a mudança."
+            },
+            {
+                id: 26, part: 1, type: "fill",
+                instructionChar: "第 23 到 26 题：选词填空。", instructionPinyin: "Dì 23 dào 26 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 23 a 26: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 能力", "B 通知", "C 留", "D 坚持", "E 首先"],
+                optionsBankPinyin: ["A nénglì", "B tōngzhī", "C liú", "D jiānchí", "E shǒuxiān"],
+                optionsBankTrans: ["A Capacidade", "B Aviso/Avisar", "C Deixar/Ficar", "D Persistir", "E Primeiramente"],
+                qChar: "26. 一个人（ [BLANK] ）的提高，需要长时间的学习。",
+                qPinyin: "26. Yí gè rén ( [BLANK] ) de tígāo, xūyào cháng shíjiān de xuéxí.",
+                qTrans: "26. A melhoria da ( A capacidade ) de uma pessoa exige um longo tempo de estudo.",
+                correctAnswer: "A",
+                explanation: "能力 (nénglì) significa 'capacidade' ou 'habilidade'. A frase fala sobre a 'melhoria da capacidade' (能力的提高)."
+            },
+
+            // ================= PARTE 1.B (Q27-Q30) =================
+            {
+                id: 'intro1b', type: 'intro', part: 1,
+                title: "第一部分",
+                titlePinyin: "Dì-yī bùfèn",
+                instructions: "第 27 到 30 题：选词填空。",
+                instructionsPinyin: "Dì 27 dào 30 tí: Xuǎncí tiánkòng.",
+                examples: [
+                    {
+                        text: "选项 (Opções): A 安排  B 准时  C 温度  D 挺  E 正式",
+                        pinyin: "Xuǎnxiàng: A ānpái  B zhǔnshí  C wēndù  D tǐng  E zhèngshì",
+                        trans: "A Organizar  B Pontual  C Temperatura  D Bastante/Muito  E Formal",
+                        q: "例如：A：今天真冷啊，好像白天最高（ C ）才 2℃。<br>B：刚才电视里说明天更冷。",
+                        qPinyin: "Lìrú: A: Jīntiān zhēn lěng a, hǎoxiàng báitiān zuìgāo ( C ) cái 2℃.<br>B: Gāngcái diànshì lǐ shuō míngtiān gèng lěng.",
+                        qTrans: "Exemplo: A: Hoje está muito frio, parece que a ( C temperatura ) máxima do dia é apenas 2℃.<br>B: Acabou de dizer na TV que amanhã será ainda mais frio.",
+                        ans: "C"
+                    }
+                ]
+            },
+            {
+                id: 27, part: 1, type: "fill",
+                instructionChar: "第 27 到 30 题：选词填空。", instructionPinyin: "Dì 27 dào 30 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 27 a 30: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 安排", "B 准时", "C 温度", "D 挺", "E 正式"],
+                optionsBankPinyin: ["A ānpái", "B zhǔnshí", "C wēndù", "D tǐng", "E zhèngshì"],
+                optionsBankTrans: ["A Organizar", "B Pontual", "C Temperatura", "D Bastante/Muito", "E Formal"],
+                qChar: "27. A: 你来得真够（ [BLANK] ）的，正好 8 点。<br>B: 这就好，我还以为迟到了。",
+                qPinyin: "27. A: Nǐ lái de zhēn gòu ( [BLANK] ) de, zhènghǎo 8 diǎn.<br>B: Zhè jiù hǎo, wǒ hái yǐwéi chídào le.",
+                qTrans: "27. A: Você chegou bem ( B pontual ), exatamente às 8 horas.<br>B: Que bom, eu achei que estivesse atrasado.",
+                correctAnswer: "B",
+                explanation: "准时 (zhǔnshí) significa 'pontual'. A dica 'exatamente às 8 horas' e 'achei que estava atrasado' confirmam a escolha."
+            },
+            {
+                id: 28, part: 1, type: "fill",
+                instructionChar: "第 27 到 30 题：选词填空。", instructionPinyin: "Dì 27 dào 30 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 27 a 30: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 安排", "B 准时", "C 温度", "D 挺", "E 正式"],
+                optionsBankPinyin: ["A ānpái", "B zhǔnshí", "C wēndù", "D tǐng", "E zhèngshì"],
+                optionsBankTrans: ["A Organizar", "B Pontual", "C Temperatura", "D Bastante/Muito", "E Formal"],
+                qChar: "28. A: 最近怎么穿得这么（ [BLANK] ）？<br>B: 我现在开始上班了，这是公司的要求。",
+                qPinyin: "28. A: Zuìjìn zěnme chuān de zhème ( [BLANK] )?<br>B: Wǒ xiànzài kāishǐ shàngbān le, zhè shì gōngsī de yāoqiú.",
+                qTrans: "28. A: Por que ultimamente você tem se vestido de forma tão ( E formal )?<br>B: Eu comecei a trabalhar agora, esta é uma exigência da empresa.",
+                correctAnswer: "E",
+                explanation: "正式 (zhèngshì) significa 'formal' ou 'oficial'. Usado aqui para descrever a forma de se vestir para o trabalho."
+            },
+            {
+                id: 29, part: 1, type: "fill",
+                instructionChar: "第 27 到 30 题：选词填空。", instructionPinyin: "Dì 27 dào 30 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 27 a 30: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 安排", "B 准时", "C 温度", "D 挺", "E 正式"],
+                optionsBankPinyin: ["A ānpái", "B zhǔnshí", "C wēndù", "D tǐng", "E zhèngshì"],
+                optionsBankTrans: ["A Organizar", "B Pontual", "C Temperatura", "D Bastante/Muito", "E Formal"],
+                qChar: "29. A: 希望我们的工作能让您满意。<br>B: 我非常满意，一切都（ [BLANK] ）得很好，谢谢你们。",
+                qPinyin: "29. A: Xīwàng wǒmen de gōngzuò néng ràng nín mǎnyì.<br>B: Wǒ fēicháng mǎnyì, yìqiè dōu ( [BLANK] ) de hěn hǎo, xièxie nǐmen.",
+                qTrans: "29. A: Espero que nosso trabalho possa deixá-lo satisfeito.<br>B: Estou extremamente satisfeito, tudo foi ( A organizado ) muito bem, obrigado.",
+                correctAnswer: "A",
+                explanation: "安排 (ānpái) significa 'organizar' ou 'arranjar'. 'tudo foi organizado muito bem'."
+            },
+            {
+                id: 30, part: 1, type: "fill",
+                instructionChar: "第 27 到 30 题：选词填空。", instructionPinyin: "Dì 27 dào 30 tí: Xuǎncí tiánkòng.", instructionTrans: "Questões 27 a 30: Selecione as palavras para preencher os espaços.",
+                optionsBank: ["A 安排", "B 准时", "C 温度", "D 挺", "E 正式"],
+                optionsBankPinyin: ["A ānpái", "B zhǔnshí", "C wēndù", "D tǐng", "E zhèngshì"],
+                optionsBankTrans: ["A Organizar", "B Pontual", "C Temperatura", "D Bastante/Muito", "E Formal"],
+                qChar: "30. A: 这个手机好用吗？<br>B: （ [BLANK] ）好的，就像电视上说的“用过的都说好，没用过的都在找”。",
+                qPinyin: "30. A: Zhège shǒujī hǎoyòng ma?<br>B: ( [BLANK] ) hǎo de, jiù xiàng diànshì shang shuō de “yòng guo de dōu shuō hǎo, méi yòng guo de dōu zài zhǎo”.",
+                qTrans: "30. A: Este celular é bom de usar?<br>B: É ( D bastante ) bom, exatamente como dizem na TV...",
+                correctAnswer: "D",
+                explanation: "挺 (tǐng) significa 'bastante' ou 'muito', frequentemente usado na estrutura '挺...的' (tǐng...de), como em '挺好的' (bastante bom)."
+            },
+
+            // ================= PARTE 2 (Q31-Q34) =================
+            {
+                id: 'intro2', type: 'intro', part: 2,
+                title: "第二部分",
+                titlePinyin: "Dì-èr bùfèn",
+                instructions: "第 31 到 34 题：排列顺序。",
+                instructionsPinyin: "Dì 31 dào 34 tí: Páiliè shùnxù.",
+                examples: [
+                    {
+                        text: "A 可是今天起晚了<br>B 平时我骑自行车上下班<br>C 所以就打车来公司",
+                        pinyin: "A Kěshì jīntiān qǐ wǎn le<br>B Píngshí wǒ qí zìxíngchē shàng xiàbān<br>C Suǒyǐ jiù dǎchē lái gōngsī",
+                        trans: "A Mas hoje acordei tarde<br>B Normalmente vou trabalhar de bicicleta<br>C Por isso vim para a empresa de táxi",
+                        q: "Coloque as frases em ordem lógica.",
+                        qPinyin: "...",
+                        qTrans: "...",
+                        ans: "B A C"
+                    }
+                ]
+            },
+            {
+                id: 31, part: 2, type: "order",
+                instructionChar: "第 31 到 34 题：排列顺序。", instructionPinyin: "Dì 31 dào 34 tí: Páiliè shùnxù.", instructionTrans: "Questões 31 a 34: Coloque as frases em ordem lógica.",
+                options: {
+                    A: {c: "时间太长也会影响健康", p: "shíjiān tài cháng yě huì yǐngxiǎng jiànkāng", t: "Tempo longo demais também pode afetar a saúde"},
+                    B: {c: "医生说，午饭后不要马上睡午觉", p: "yīshēng shuō, wǔfàn hòu búyào mǎshàng shuì wǔjiào", t: "O médico diz para não tirar um cochilo imediatamente após o almoço"},
+                    C: {c: "另外，午睡的时间不要过长", p: "lìngwài, wǔshuì de shíjiān bú yào guò cháng", t: "Além disso, o tempo do cochilo não deve ser longo demais"}
+                },
+                qChar: "31．", qPinyin: "", qTrans: "",
+                correctAnswer: "BCA",
+                explanation: "A frase B introduz o conselho médico principal (não dormir logo após o almoço). C adiciona uma recomendação com '另外' (além disso, não dormir muito tempo). A explica o motivo da recomendação em C (tempo longo demais afeta a saúde)."
+            },
+            {
+                id: 32, part: 2, type: "order",
+                instructionChar: "第 31 到 34 题：排列顺序。", instructionPinyin: "Dì 31 dào 34 tí: Páiliè shùnxù.", instructionTrans: "Questões 31 a 34: Coloque as frases em ordem lógica.",
+                options: {
+                    A: {c: "不管在外面的世界遇到什么困难", p: "bùguǎn zài wàimiàn de shìjiè yùdào shénme kùnnan", t: "Não importa quais dificuldades encontremos no mundo lá fora"},
+                    B: {c: "家都是我们心中最幸福的地方", p: "jiā dōu shì wǒmen xīnzhōng zuì xìngfú de dìfang", t: "O lar é sempre o lugar mais feliz em nossos corações"},
+                    C: {c: "因为我们总是能够在家里找到爱", p: "yīnwèi wǒmen zǒngshì nénggòu zài jiālǐ zhǎodào ài", t: "Porque nós sempre conseguimos encontrar amor em casa"}
+                },
+                qChar: "32．", qPinyin: "", qTrans: "",
+                correctAnswer: "ABC",
+                explanation: "Usa-se a estrutura '不管... 都...' (Não importa..., sempre...). Portanto, A vem antes de B. A frase C usa '因为' (porque) para justificar a afirmação feita em B."
+            },
+            {
+                id: 33, part: 2, type: "order",
+                instructionChar: "第 31 到 34 题：排列顺序。", instructionPinyin: "Dì 31 dào 34 tí: Páiliè shùnxù.", instructionTrans: "Questões 31 a 34: Coloque as frases em ordem lógica.",
+                options: {
+                    A: {c: "我觉得他这个人挺不错的", p: "wǒ juéde tā zhè ge rén tǐng búcuò de", t: "Eu acho que ele é uma pessoa muito boa"},
+                    B: {c: "这一点是他受大家欢迎的主要原因", p: "zhè yì diǎn shì tā shòu dàjiā huānyíng de zhǔyào yuányīn", t: "Este ponto é a razão principal de ele ser tão popular entre todos"},
+                    C: {c: "首先是他非常愿意帮助人", p: "shǒuxiān shì tā fēicháng yuànyì bāngzhù rén", t: "Primeiramente é porque ele está muito disposto a ajudar as pessoas"}
+                },
+                qChar: "33．", qPinyin: "", qTrans: "",
+                correctAnswer: "ACB",
+                explanation: "A frase A é a afirmação principal (Ele é uma pessoa boa). C dá o primeiro motivo ('首先' - primeiramente) de por que ele é bom. B conclui que 'este ponto' (se referindo à ajuda em C) é o motivo de sua popularidade."
+            },
+            {
+                id: 34, part: 2, type: "order",
+                instructionChar: "第 31 到 34 题：排列顺序。", instructionPinyin: "Dì 31 dào 34 tí: Páiliè shùnxù.", instructionTrans: "Questões 31 a 34: Coloque as frases em ordem lógica.",
+                options: {
+                    A: {c: "首先，你要学好你的法律专业", p: "shǒuxiān, nǐ yào xuéhǎo nǐ de fǎlǜ zhuānyè", t: "Primeiro, você precisa aprender bem a sua especialização em direito"},
+                    B: {c: "你想以后当一名律师吗", p: "nǐ xiǎng yǐhòu dāng yì míng lǜshī ma", t: "Você quer se tornar um advogado no futuro?"},
+                    C: {c: "其次，你要有一个好的身体", p: "qícì, nǐ yào yǒu yí gè hǎo de shēntǐ", t: "Em segundo lugar, você precisa ter uma boa saúde"}
+                },
+                qChar: "34．", qPinyin: "", qTrans: "",
+                correctAnswer: "BAC",
+                explanation: "A frase B faz a pergunta inicial introduzindo o tema (ser advogado). A frase A apresenta a primeira condição com '首先' (primeiro), e C apresenta a segunda condição com '其次' (em segundo lugar)."
+            },
+
+            // ================= PARTE 3 (Q35-Q43) =================
+            {
+                id: 'intro3', type: 'intro', part: 3,
+                title: "第三部分",
+                titlePinyin: "Dì-sān bùfèn",
+                instructions: "第 35 到 43 题：请选出正确答案。",
+                instructionsPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.",
+                examples: [
+                    {
+                        text: "她很活泼，说话很有趣，总能给我们带来快乐，我们都很喜欢和她在一起。",
+                        pinyin: "Tā hěn huópō, shuōhuà hěn yǒuqù, zǒng néng gěi wǒmen dàilái kuàilè, wǒmen dōu hěn xǐhuān hé tā zài yīqǐ.",
+                        trans: "Ela é muito animada, fala de forma interessante e sempre nos traz alegria; todos gostamos de estar com ela.",
+                        q: "★ 她是个什么样的人？",
+                        qPinyin: "★ Tā shì gè shénme yàng de rén?",
+                        qTrans: "★ Que tipo de pessoa ela é?\n(A 幽默 / Bem-humorada | B 马虎 / Descuidada | C 骄傲 / Orgulhosa | D 害羞 / Tímida)",
+                        ans: "A"
+                    }
+                ]
+            },
+            {
+                id: 35, part: 3, type: "mcq",
+                instructionChar: "第 35 到 43 题：请选出正确答案。", instructionPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.", instructionTrans: "Questões 35 a 43: Por favor, escolha a resposta correta.",
+                passageChar: "上午来应聘的那个小伙子是学法律的，笔试成绩很好，经过面试，感觉他的性格也不错，我觉得他挺适合这份工作的。",
+                passagePinyin: "Shàngwǔ lái yìngpìn de nàge xiǎohuǒzi shì xué fǎlǜ de, bǐshì chéngjì hěn hǎo, jīngguò miànshì, gǎnjué tā de xìnggé yě búcuò, wǒ juéde tā tǐng shìhé zhè fèn gōngzuò de.",
+                passageTrans: "Aquele rapaz que veio se candidatar de manhã estuda direito, a nota da prova escrita foi muito boa e, após a entrevista, a impressão é que a personalidade dele também é boa, eu acho que ele é bem adequado para este trabalho.",
+                qChar: "35. ★ 他觉得那个小伙子怎么样？",
+                qPinyin: "35. ★ Tā juéde nàge xiǎohuǒzi zěnmeyàng?",
+                qTrans: "35. ★ O que ele acha daquele rapaz?",
+                options: ["A 很帅", "B 性格好", "C 不诚实", "D 能力一般"],
+                optionsPinyin: ["A hěn shuài", "B xìnggé hǎo", "C bù chéngshí", "D nénglì yìbān"],
+                optionsTrans: ["A Muito bonito", "B Tem boa personalidade", "C Desonesto", "D Capacidade mediana"],
+                correctAnswer: 1, // B
+                explanation: "O texto menciona claramente '感觉他的性格也不错' (a impressão é que a personalidade dele também é boa)."
+            },
+            {
+                id: 36, part: 3, type: "mcq",
+                instructionChar: "第 35 到 43 题：请选出正确答案。", instructionPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.", instructionTrans: "Questões 35 a 43: Por favor, escolha a resposta correta.",
+                passageChar: "应聘时，一定要试着让自己别紧张。回答问题时，不要太快，声音也不要太小，别让紧张的心情影响了自己。",
+                passagePinyin: "Yìngpìn shí, yídìng yào shìzhe ràng zìjǐ bié jǐnzhāng. Huídá wèntí shí, búyào tài kuài, shēngyīn yě búyào tài xiǎo, bié ràng jǐnzhāng de xīnqíng yǐngxiǎng le zìjǐ.",
+                passageTrans: "Ao passar por uma seleção, com certeza deve-se tentar não ficar nervoso. Ao responder às perguntas, não seja rápido demais, e a voz também não deve ser muito baixa, não deixe que o nervosismo afete você.",
+                qChar: "36. ★ 面试时要注意什么？",
+                qPinyin: "36. ★ Miànshì shí yào zhùyì shénme?",
+                qTrans: "36. ★ Ao que se deve prestar atenção durante uma entrevista?",
+                options: ["A 别太紧张", "B 要有礼貌", "C 回答问题要快", "D 声音不能太大"],
+                optionsPinyin: ["A bié tài jǐnzhāng", "B yào yǒu lǐmào", "C huídá wèntí yào kuài", "D shēngyīn bù néng tài dà"],
+                optionsTrans: ["A Não ficar muito nervoso", "B Ser educado", "C Responder rápido às perguntas", "D A voz não pode ser muito alta"],
+                correctAnswer: 0, // A
+                explanation: "A frase principal e conclusão do texto é sobre controlar os nervos: '一定要试着让自己别紧张' (deve-se tentar não ficar nervoso)."
+            },
+            {
+                id: 37, part: 3, type: "mcq",
+                instructionChar: "第 35 到 43 题：请选出正确答案。", instructionPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.", instructionTrans: "Questões 35 a 43: Por favor, escolha a resposta correta.",
+                passageChar: "听说这周六上午 8 点在学校体育馆有个招聘会，这次招聘会提供差不多 1000 个工作机会，咱们一起去看看吧。",
+                passagePinyin: "Tīngshuō zhè zhōuliù shàngwǔ 8 diǎn zài xuéxiào tǐyùguǎn yǒu gè zhāopìnhuì, zhè cì zhāopìnhuì tígōng chàbuduō 1000 gè gōngzuò jīhuì, zánmen yìqǐ qù kànkan ba.",
+                passageTrans: "Ouvi dizer que neste sábado, às 8 da manhã, haverá uma feira de empregos no ginásio da escola, esta feira de empregos oferecerá quase 1000 oportunidades de trabalho, vamos dar uma olhada juntos.",
+                qChar: "37. ★ 关于这场招聘会，可以知道：",
+                qPinyin: "37. ★ Guānyú zhè chǎng zhāopìnhuì, kěyǐ zhīdào:",
+                qTrans: "37. ★ Sobre esta feira de empregos, pode-se saber que:",
+                options: ["A 改时间了", "B 改地方了", "C 在体育馆", "D 还没安排好"],
+                optionsPinyin: ["A gǎi shíjiān le", "B gǎi dìfang le", "C zài tǐyùguǎn", "D hái méi ānpái hǎo"],
+                optionsTrans: ["A O horário mudou", "B O local mudou", "C É no ginásio esportivo", "D Ainda não foi bem organizada"],
+                correctAnswer: 2, // C
+                explanation: "O texto afirma explicitamente que o evento será '在学校体育馆' (no ginásio de esportes da escola)."
+            },
+            {
+                id: 38, part: 3, type: "mcq",
+                instructionChar: "第 35 到 43 题：请选出正确答案。", instructionPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.", instructionTrans: "Questões 35 a 43: Por favor, escolha a resposta correta.",
+                passageChar: "小高，我仔细看了一下，他们这次招聘的要求虽然高，但是那些条件你都符合，你应该去试试。",
+                passagePinyin: "Xiǎo Gāo, wǒ zǐxì kàn le yíxià, tāmen zhè cì zhāopìn de yāoqiú suīrán gāo, dànshì nàxiē tiáojiàn nǐ dōu fúhé, nǐ yīnggāi qù shìshi.",
+                passageTrans: "Xiao Gao, eu olhei com cuidado, embora os requisitos dessa contratação deles sejam altos, você atende a todas aquelas condições, você deveria ir tentar.",
+                qChar: "38. ★ 说话人想让小高：",
+                qPinyin: "38. ★ Shuōhuàrén xiǎng ràng Xiǎo Gāo:",
+                qTrans: "38. ★ A pessoa que fala quer que o Xiao Gao:",
+                options: ["A 去约会", "B 认真考试", "C 去跟朋友见面", "D 去应聘"],
+                optionsPinyin: ["A qù yuēhuì", "B rènzhēn kǎoshì", "C qù gēn péngyou jiànmiàn", "D qù yìngpìn"],
+                optionsTrans: ["A Vá a um encontro", "B Faça a prova seriamente", "C Vá se encontrar com amigos", "D Vá se candidatar"],
+                correctAnswer: 3, // D
+                explanation: "A pessoa incentiva Xiao Gao a '去试试' (ir tentar) no contexto de uma '招聘' (contratação/vaga). Logo, ela quer que ele vá se candidatar ('应聘')."
+            },
+            {
+                id: 39, part: 3, type: "mcq",
+                instructionChar: "第 35 到 43 题：请选出正确答案。", instructionPinyin: "Dì 35 dào 43 tí: Qǐng xuǎnchū zhèngquè dá'àn.", instructionTrans: "Questões 35 a 43: Por favor, escolha a resposta correta.",
+                passageChar: "院长，我昨天跟他电话里聊了聊，我感觉他很愿意来我们医院工作，但是他要下个月才能回国，所以我想等他回来再约他来见您。",
+                passagePinyin: "Yuànzhǎng, wǒ zuótiān gēn tā diànhuà lǐ liáo le liáo, wǒ gǎnjué tā hěn yuànyì lái wǒmen yīyuàn gōngzuò, dànshì tā yào xià gè yuè cái néng huíguó, suǒyǐ wǒ xiǎng děng tā huílái zài yuē tā lái jiàn nín.",
+                passageTrans: "Diretor, eu conversei com ele por telefone ontem, sinto que ele está muito disposto a vir trabalhar no nosso hospital, mas ele só poderá voltar ao país no mês que vem, então quero esperar ele voltar para agendar para ele vir vê-lo.",
+                qChar: "39. ★ 关于说话人，可以知道：",
+                qPinyin: "39. ★ Guānyú shuōhuàrén, kěyǐ zhīdào:",
+                qTrans: "39. ★ Sobre a pessoa que está falando, pode-se saber que:",
+                options: ["A 在参加面试", "B 在学校工作", "C 在医院工作", "D 在国外工作"],
+                optionsPinyin: ["A zài cānjiā miànshì", "B zài xuéxiào gōngzuò", "C zài yīyuàn gōngzuò", "D zài guówài gōngzuò"],
+                optionsTrans: ["A Está participando de uma entrevista", "B Trabalha numa escola", "C Trabalha num hospital", "D Trabalha no exterior"],
+                correctAnswer: 2, // C
+                explanation: "A pessoa diz '来我们医院工作' (vir trabalhar no *nosso* hospital) ao relatar para o Diretor (院长), provando que ela trabalha lá."
+            },
+            {
+                id: 40, part: 3, type: "mcq",
+                instructionChar: "第 40 到 41 题是根据下面一段话：", instructionPinyin: "Dì 40 dào 41 tí shì gēnjù xiàmiàn yí duàn huà:", instructionTrans: "As questões 40 a 41 são baseadas no seguinte trecho:",
+                passageChar: "有些人喜欢不停地换工作，他们总以为新工作一定比现在的好。实际上，一般情况下，适应一个新的工作需要一年时间，因此，经常换工作不一定好，认真把一份工作做到最好才是正确的选择。",
+                passagePinyin: "Yǒuxiē rén xǐhuan bùtíng de huàn gōngzuò, tāmen zǒng yǐwéi xīn gōngzuò yídìng bǐ xiànzài de hǎo. Shíjìshang, yìbān qíngkuàng xià, shìyìng yí gè xīn de gōngzuò xūyào yì nián shíjiān, yīncǐ, jīngcháng huàn gōngzuò bù yídìng hǎo, rènzhēn bǎ yí fèn gōngzuò zuò dào zuìhǎo cái shì zhèngquè de xuǎnzé.",
+                passageTrans: "Algumas pessoas gostam de trocar de emprego sem parar, elas sempre acham que o novo trabalho será com certeza melhor que o atual. Na verdade, em circunstâncias normais, adaptar-se a um novo trabalho exige um ano de tempo, portanto, trocar de emprego frequentemente não é necessariamente bom; levar a sério e fazer um trabalho da melhor forma possível é a escolha correta.",
+                qChar: "40. ★ 有些人经常换工作是因为他们：",
+                qPinyin: "40. ★ Yǒuxiē rén jīngcháng huàn gōngzuò shì yīnwèi tāmen:",
+                qTrans: "40. ★ Algumas pessoas trocam de emprego frequentemente porque elas:",
+                options: ["A 喜欢变化", "B 特别努力", "C 没有能力", "D 相信新工作更好"],
+                optionsPinyin: ["A xǐhuān biànhuà", "B tèbié nǔlì", "C méiyǒu nénglì", "D xiāngxìn xīn gōngzuò gèng hǎo"],
+                optionsTrans: ["A Gostam de mudanças", "B São muito esforçadas", "C Não têm capacidade", "D Acreditam que o novo trabalho será melhor"],
+                correctAnswer: 3, // D
+                explanation: "O texto diz '他们总以为新工作一定比现在的好' (elas sempre acham/acreditam que o novo trabalho será com certeza melhor que o atual)."
+            },
+            {
+                id: 41, part: 3, type: "mcq",
+                instructionChar: "第 40 到 41 题是根据下面一段话：", instructionPinyin: "Dì 40 dào 41 tí shì gēnjù xiàmiàn yí duàn huà:", instructionTrans: "As questões 40 a 41 são baseadas no seguinte trecho:",
+                passageChar: "有些人喜欢不停地换工作，他们总以为新工作一定比现在的好。实际上，一般情况下，适应一个新的工作需要一年时间，因此，经常换工作不一定好，认真把一份工作做到最好才是正确的选择。",
+                passagePinyin: "Yǒuxiē rén xǐhuan bùtíng de huàn gōngzuò, tāmen zǒng yǐwéi xīn gōngzuò yídìng bǐ xiànzài de hǎo. Shíjìshang, yìbān qíngkuàng xià, shìyìng yí gè xīn de gōngzuò xūyào yì nián shíjiān, yīncǐ, jīngcháng huàn gōngzuò bù yídìng hǎo, rènzhēn bǎ yí fèn gōngzuò zuò dào zuìhǎo cái shì zhèngquè de xuǎnzé.",
+                passageTrans: "Algumas pessoas gostam de trocar de emprego sem parar, elas sempre acham que o novo trabalho será com certeza melhor que o atual. Na verdade, em circunstâncias normais, adaptar-se a um novo trabalho exige um ano de tempo, portanto, trocar de emprego frequentemente não é necessariamente bom; levar a sério e fazer um trabalho da melhor forma possível é a escolha correta.",
+                qChar: "41. ★ 这段话主要告诉我们什么？",
+                qPinyin: "41. ★ Zhè duàn huà zhǔyào gàosu wǒmen shénme?",
+                qTrans: "41. ★ O que este texto quer nos dizer principalmente?",
+                options: ["A 要经常换工作", "B 适应新工作很快", "C 新工作更好", "D 不要着急换工作"],
+                optionsPinyin: ["A yào jīngcháng huàn gōngzuò", "B shìyìng xīn gōngzuò hěn kuài", "C xīn gōngzuò gèng hǎo", "D búyào zháojí huàn gōngzuò"],
+                optionsTrans: ["A Deve-se trocar de emprego frequentemente", "B Adaptar-se ao novo trabalho é rápido", "C O novo trabalho é melhor", "D Não tenha pressa em mudar de emprego"],
+                correctAnswer: 3, // D
+                explanation: "O texto conclui que '经常换工作不一定好' (mudar de emprego frequentemente não é necessariamente bom) e incentiva a fazer o trabalho atual bem feito, o que se alinha com 'não ter pressa em mudar'."
+            },
+            {
+                id: 42, part: 3, type: "mcq",
+                instructionChar: "第 42 到 43 题是根据下面一段话：", instructionPinyin: "Dì 42 dào 43 tí shì gēnjù xiàmiàn yí duàn huà:", instructionTrans: "As questões 42 a 43 são baseadas no seguinte trecho:",
+                passageChar: "《富爸爸，穷爸爸》讲了这样一个故事，“我”的爸爸没有钱，是个穷爸爸；朋友的爸爸是个富爸爸，很有钱。两位爸爸对金钱的看法完全不同，这使“我”对金钱有了兴趣，最终，“我”接受了朋友爸爸的看法，也就是书中所说的“富爸爸”的看法：人们不应该为钱工作，而要让钱为我们工作。",
+                passagePinyin: "\"Fù bàba, qióng bàba\" jiǎng le zhèyàng yí gè gùshi, \"wǒ\" de bàba méiyǒu qián, shì gè qióng bàba; péngyou de bàba shì gè fù bàba, hěn yǒu qián. Liǎng wèi bàba duì jīnqián de kànfǎ wánquán bùtóng, zhè shǐ \"wǒ\" duì jīnqián yǒu le xìngqù, zuìzhōng, \"wǒ\" jiēshòu le péngyou bàba de kànfǎ, yě jiùshì shū zhōng suǒ shuō de \"fù bàba\" de kànfǎ: rénmen bù yīnggāi wèi qián gōngzuò, ér yào ràng qián wèi wǒmen gōngzuò.",
+                passageTrans: "'Pai Rico, Pai Pobre' conta a seguinte história: o pai de 'eu' (narrador) não tinha dinheiro, era um pai pobre; o pai do amigo era um pai rico, tinha muito dinheiro. A visão dos dois pais sobre o dinheiro era completamente diferente, isso fez com que 'eu' tivesse interesse por dinheiro e, no fim das contas, 'eu' aceitei a visão do pai do amigo, que é a visão do 'pai rico' dita no livro: as pessoas não deveriam trabalhar por dinheiro, mas sim fazer com que o dinheiro trabalhe por nós.",
+                qChar: "42. ★ 这本书中的“穷爸爸”是指：",
+                qPinyin: "42. ★ Zhè běn shū zhōng de “qióng bàba” shì zhǐ:",
+                qTrans: "42. ★ O 'pai pobre' neste livro se refere a:",
+                options: ["A 钱", "B 工作", "C “我”的爸爸", "D 朋友的爸爸"],
+                optionsPinyin: ["A qián", "B gōngzuò", "C “wǒ” de bàba", "D péngyou de bàba"],
+                optionsTrans: ["A Dinheiro", "B Trabalho", "C O pai do narrador ('eu')", "D O pai do amigo"],
+                correctAnswer: 2, // C
+                explanation: "O texto diz explicitamente: '“我”的爸爸没有钱，是个穷爸爸' (o pai do 'eu'/narrador não tinha dinheiro, era um pai pobre)."
+            },
+            {
+                id: 43, part: 3, type: "mcq",
+                instructionChar: "第 42 到 43 题是根据下面一段话：", instructionPinyin: "Dì 42 dào 43 tí shì gēnjù xiàmiàn yí duàn huà:", instructionTrans: "As questões 42 a 43 são baseadas no seguinte trecho:",
+                passageChar: "《富爸爸，穷爸爸》讲了这样一个故事，“我”的爸爸没有钱，是个穷爸爸；朋友的爸爸是个富爸爸，很有钱。两位爸爸对金钱的看法完全不同，这使“我”对金钱有了兴趣，最终，“我”接受了朋友爸爸的看法，也就是书中所说的“富爸爸”的看法：人们不应该为钱工作，而要让钱为我们工作。",
+                passagePinyin: "\"Fù bàba, qióng bàba\" jiǎng le zhèyàng yí gè gùshi, \"wǒ\" de bàba méiyǒu qián, shì gè qióng bàba; péngyou de bàba shì gè fù bàba, hěn yǒu qián. Liǎng wèi bàba duì jīnqián de kànfǎ wánquán bùtóng, zhè shǐ \"wǒ\" duì jīnqián yǒu le xìngqù, zuìzhōng, \"wǒ\" jiēshòu le péngyou bàba de kànfǎ, yě jiùshì shū zhōng suǒ shuō de \"fù bàba\" de kànfǎ: rénmen bù yīnggāi wèi qián gōngzuò, ér yào ràng qián wèi wǒmen gōngzuò.",
+                passageTrans: "'Pai Rico, Pai Pobre' conta a seguinte história: o pai de 'eu' (narrador) não tinha dinheiro, era um pai pobre; o pai do amigo era um pai rico, tinha muito dinheiro. A visão dos dois pais sobre o dinheiro era completamente diferente, isso fez com que 'eu' tivesse interesse por dinheiro e, no fim das contas, 'eu' aceitei a visão do pai do amigo, que é a visão do 'pai rico' dita no livro: as pessoas não deveriam trabalhar por dinheiro, mas sim fazer com que o dinheiro trabalhe por nós.",
+                qChar: "43. ★ “富爸爸”对金钱的看法是：",
+                qPinyin: "43. ★ “Fù bàba” duì jīnqián de kànfǎ shì:",
+                qTrans: "43. ★ A visão do 'pai rico' sobre o dinheiro é:",
+                options: ["A 为钱工作", "B 钱并不重要", "C 钱让人快乐", "D 让钱为我们服务"],
+                optionsPinyin: ["A wèi qián gōngzuò", "B qián bìng bù zhòngyào", "C qián ràng rén kuàilè", "D ràng qián wèi wǒmen fúwù"],
+                optionsTrans: ["A Trabalhar por dinheiro", "B O dinheiro não é importante", "C O dinheiro traz felicidade", "D Fazer o dinheiro trabalhar/servir a nós"],
+                correctAnswer: 3, // D
+                explanation: "A última frase do texto resume a visão do pai rico: '人们不应该为钱工作，而要让钱为我们工作' (as pessoas não deveriam trabalhar por dinheiro, e sim fazer o dinheiro trabalhar por nós/nos servir)."
+            }
+        ];
+
+        // --- APP STATE ---
+        let currentIndex = 0;
+        let userAnswers = new Array(questionsData.length).fill(null);
+        let checkedAnswers = new Array(questionsData.length).fill(false);
+
+        // Pre-calculate Part Starting Indexes for Navigation
+        let partStarts = [];
+        questionsData.forEach((q, idx) => {
+            if (q.type === 'intro' && !partStarts.some(p => p.part === q.part)) {
+                partStarts.push({part: q.part, idx: idx});
+            }
+        });
+
+        // --- DOM ELEMENTS ---
+        const ui = {
+            progress: document.getElementById('progress-text'),
+            part: document.getElementById('part-text'),
+            titleMain: document.getElementById('title-main'),
+            titleMainPy: document.getElementById('title-main-py'),
+            titleSub: document.getElementById('title-sub'),
+            titleSubPy: document.getElementById('title-sub-py'),
+            introScreen: document.getElementById('intro-screen'),
+            introTitle: document.getElementById('intro-title-text'),
+            introTitlePy: document.getElementById('intro-title-pinyin'),
+            introInstructions: document.getElementById('intro-instructions-text'),
+            introInstructionsPy: document.getElementById('intro-instructions-pinyin'),
+            introExamples: document.getElementById('intro-examples-area'),
+            btnStartPart: document.getElementById('btn-start-part'),
+            
+            questionScreen: document.getElementById('question-screen'),
+            instBlock: document.getElementById('instruction-block'),
+            instChars: document.getElementById('instruction-chars'),
+            instPinyin: document.getElementById('instruction-pinyin'),
+            instTrans: document.getElementById('instruction-trans'),
+            passageBlock: document.getElementById('passage-block'),
+            passageChars: document.getElementById('passage-chars'),
+            passagePinyin: document.getElementById('passage-pinyin'),
+            passageTrans: document.getElementById('passage-trans'),
+            qLabel: document.getElementById('question-label'),
+            qChars: document.getElementById('question-chars'),
+            qPinyin: document.getElementById('question-pinyin'),
+            qTrans: document.getElementById('question-trans'),
+            dynamicOptions: document.getElementById('dynamic-options-area'),
+            
+            expDisplay: document.getElementById('explanation-display'),
+            btnCheck: document.getElementById('btn-check-answer'),
+            btnExplanation: document.getElementById('btn-show-explanation'),
+            
+            resultsScreen: document.getElementById('results-screen'),
+            resultsScore: document.getElementById('results-score-text'),
+            resultsPercentage: document.getElementById('results-percentage'),
+            resultsList: document.getElementById('results-list'),
+            
+            navigationBar: document.getElementById('navigation-bar'),
+            btnPrev: document.getElementById('btn-prev'),
+            btnNext: document.getElementById('btn-next'),
+            btnPrevPart: document.getElementById('btn-prev-part'),
+            btnNextPart: document.getElementById('btn-next-part'),
+            
+            tooltip: document.getElementById('tooltip'),
+            ttPinyin: document.getElementById('tt-pinyin-text'),
+            ttTrans: document.getElementById('tt-trans-text'),
+            ttCharsBlock: document.getElementById('tt-chars-breakdown'),
+            interactionArea: document.getElementById('interaction-area'),
+            btnInfo: document.getElementById('btn-info'),
+            modalInfo: document.getElementById('info-modal'),
+            btnCloseModal: document.getElementById('btn-close-modal'),
+            leftPanel: document.getElementById('left-panel'),
+            togglePanelBtn: document.getElementById('toggle-panel-btn')
+        };
+
+        // --- CORE FUNCTIONS ---
+        function wrapText(text) {
+            if (!text) return '';
+            let formattedText = text.replace(/\n/g, '<br>');
+            formattedText = formattedText.replace(/\[BLANK\]/g, '<span id="fill-placeholder" class="fill-blank-slot">____</span>');
+
+            let result = '';
+            let i = 0;
+            
+            while (i < formattedText.length) {
+                if (formattedText[i] === '<') {
+                    let end = formattedText.indexOf('>', i);
+                    result += formattedText.substring(i, end + 1);
+                    i = end + 1;
+                    continue;
+                }
+                
+                if (!/[\u4E00-\u9FA5]/.test(formattedText[i])) {
+                    result += formattedText[i];
+                    i++;
+                    continue;
+                }
+                
+                let matchFound = false;
+                for (let len = 6; len >= 2; len--) {
+                    if (i + len <= formattedText.length) {
+                        let wordCandidate = formattedText.substring(i, i + len);
+                        if (wordsDict[wordCandidate]) {
+                            result += `<span class="char-interactive" data-word="${wordCandidate}">${wordCandidate}</span>`;
+                            i += len;
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!matchFound) {
+                    let char = formattedText[i];
+                    result += `<span class="char-interactive" data-word="${char}">${char}</span>`;
+                    i++;
+                }
+            }
+            return result;
+        }
+
+        ui.titleMain.innerHTML = wrapText("HSK 4 阅读");
+        ui.titleSub.innerHTML = wrapText("第三课：经理对我印象不错");
+
+        window.toggleDisplay = function(id) {
+            const el = document.getElementById(id);
+            if(el) el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+        }
+
+        function renderView() {
+            if (currentIndex >= questionsData.length) {
+                renderResults();
+                return;
+            }
+
+            const currentItem = questionsData[currentIndex];
+            
+            ui.introScreen.style.display = 'none';
+            ui.questionScreen.style.display = 'none';
+            ui.resultsScreen.style.display = 'none';
+            ui.navigationBar.style.display = 'flex'; 
+            
+            if (currentItem.type === 'intro') {
+                renderIntroScreen(currentItem);
+            } else {
+                renderQuestionScreen(currentItem);
+            }
+
+            // Normal Navigation Setup
+            ui.btnPrev.disabled = currentIndex === 0;
+            
+            if (currentIndex === questionsData.length - 1) {
+                ui.btnNext.innerHTML = `Finalizar Teste <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+                ui.btnNext.style.backgroundColor = "var(--color-jade)";
+                ui.btnNext.style.color = "#fff";
+                ui.btnNext.style.borderColor = "var(--color-jade)";
+            } else {
+                ui.btnNext.innerHTML = `Próximo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+                ui.btnNext.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+                ui.btnNext.style.color = "var(--color-primary)";
+                ui.btnNext.style.borderColor = "var(--color-primary)";
+            }
+
+            // Smart Part Navigation Setup
+            let currentPart = currentItem.part;
+            let currentPartStartIdx = partStarts.find(p => p.part === currentPart).idx;
+            let nextPartIdx = partStarts.find(p => p.part > currentPart)?.idx ?? -1;
+            let prevPartIdx = -1;
+
+            if (currentIndex > currentPartStartIdx) {
+                prevPartIdx = currentPartStartIdx;
+            } else {
+                let prevPartObj = partStarts.slice().reverse().find(p => p.part < currentPart);
+                if (prevPartObj) prevPartIdx = prevPartObj.idx;
+            }
+
+            ui.btnNextPart.disabled = nextPartIdx === -1;
+            ui.btnPrevPart.disabled = prevPartIdx === -1;
+            ui.btnNextPart.onclick = () => { if (nextPartIdx !== -1) { currentIndex = nextPartIdx; renderView(); } };
+            ui.btnPrevPart.onclick = () => { if (prevPartIdx !== -1) { currentIndex = prevPartIdx; renderView(); } };
+        }
+
+        function renderIntroScreen(data) {
+            ui.introScreen.style.display = 'flex';
+            
+            ui.part.innerHTML = wrapText(data.title);
+            ui.progress.innerHTML = "";
+            
+            ui.introTitle.innerHTML = wrapText(data.title);
+            ui.introTitlePy.innerText = data.titlePinyin;
+            ui.introTitlePy.style.display = 'none';
+
+            ui.introInstructions.innerHTML = wrapText(data.instructions);
+            ui.introInstructionsPy.innerText = data.instructionsPinyin;
+            ui.introInstructionsPy.style.display = 'none';
+            
+            let examplesHtml = "";
+            data.examples.forEach((ex, idx) => {
+                examplesHtml += `
+                    <div class="example-box">
+                        <div class="example-label">Exemplo ${idx + 1}</div>
+                        
+                        <div class="chinese-text" style="font-size: 20px;">${wrapText(ex.text)}</div>
+                        <div class="controls-group" style="margin-top:8px; margin-bottom: 8px;">
+                            <button class="btn-translate-inline" onclick="toggleDisplay('ex-pinyin-${idx}')">Pīnyīn</button>
+                            <button class="btn-translate-inline" onclick="toggleDisplay('ex-trans-${idx}')">A/文 Tradução</button>
+                        </div>
+                        <div id="ex-pinyin-${idx}" style="color:var(--color-jade); margin-bottom: 10px; font-size: 16px; display: none;" class="pinyin-display">${ex.pinyin}</div>
+                        <div id="ex-trans-${idx}" style="color:var(--text-muted); margin-bottom: 20px; font-size: 16px; display: none;">${ex.trans}</div>
+                        
+                        <div class="chinese-text" style="font-size: 20px; margin-top: 15px;">${wrapText(ex.q)}</div>
+                        <div class="controls-group" style="margin-top:8px; margin-bottom: 8px;">
+                            <button class="btn-translate-inline" onclick="toggleDisplay('ex-q-pinyin-${idx}')">Pīnyīn</button>
+                            <button class="btn-translate-inline" onclick="toggleDisplay('ex-q-trans-${idx}')">A/文 Tradução</button>
+                        </div>
+                        <div id="ex-q-pinyin-${idx}" style="color:var(--color-jade); margin-bottom: 5px; font-size: 16px; display: none;" class="pinyin-display">${ex.qPinyin}</div>
+                        <div id="ex-q-trans-${idx}" style="color:var(--text-muted); margin-bottom: 15px; font-size: 16px; display: none;">${ex.qTrans}</div>
+                        
+                        <div style="color:var(--color-gold); font-weight:bold; font-size: 18px; margin-top: 15px; border-top: 1px dashed var(--color-gold); padding-top: 10px;">[ Resposta: ${wrapText(ex.ans)} ]</div>
+                    </div>
+                `;
+            });
+            ui.introExamples.innerHTML = examplesHtml;
+        }
+
+        function renderQuestionScreen(q) {
+            ui.questionScreen.style.display = 'flex';
+            
+            ui.progress.innerHTML = `Questão ${q.id} de 43`;
+            ui.part.innerHTML = wrapText(q.part === 1 ? "第一部分" : (q.part === 2 ? "第二部分" : "第三部分"));
+
+            ui.passageBlock.style.display = 'none';
+            ui.instTrans.style.display = 'none';
+            ui.instPinyin.style.display = 'none';
+            ui.passageTrans.style.display = 'none';
+            ui.passagePinyin.style.display = 'none';
+            ui.qTrans.style.display = 'none';
+            ui.qPinyin.style.display = 'none';
+            
+            ui.expDisplay.style.display = 'none';
+            ui.btnExplanation.style.display = 'none';
+            ui.dynamicOptions.innerHTML = '';
+            
+            const isChecked = checkedAnswers[currentIndex];
+            ui.btnCheck.disabled = userAnswers[currentIndex] === null || isChecked;
+            ui.btnCheck.innerHTML = isChecked ? `Corrigido <svg width="16" height="16" style="margin-left: 5px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>` : "Checar Resposta";
+
+            if (isChecked) {
+                ui.btnExplanation.style.display = 'inline-block';
+            }
+
+            ui.instChars.innerHTML = wrapText(q.instructionChar);
+            ui.instPinyin.innerText = q.instructionPinyin;
+            ui.instTrans.innerText = q.instructionTrans;
+
+            if (q.passageChar) {
+                ui.passageBlock.style.display = 'block';
+                ui.passageChars.innerHTML = wrapText(q.passageChar);
+                ui.passagePinyin.innerText = q.passagePinyin;
+                ui.passageTrans.innerText = q.passageTrans;
+            }
+
+            ui.qChars.innerHTML = wrapText(q.qChar);
+            ui.qPinyin.innerText = q.qPinyin || "";
+            ui.qTrans.innerText = q.qTrans || "";
+            ui.qLabel.innerText = q.type === 'order' ? 'Frases' : 'Questão';
+
+            if (q.type === 'fill') {
+                let bankHtml = `<div class="word-bank-vertical">`;
+                q.optionsBank.forEach((opt, idx) => {
+                    let letter = opt.substring(0, 1);
+                    let isSel = (userAnswers[currentIndex] === letter) ? 'selected' : '';
+                    let stateClass = '';
+                    if (isChecked) {
+                        stateClass = 'locked ';
+                        if (letter === q.correctAnswer) stateClass += 'is-correct';
+                        else if (userAnswers[currentIndex] === letter) stateClass += 'is-incorrect';
+                    }
+                    bankHtml += `
+                        <div class="option-wrapper ${isSel} ${stateClass}">
+                            <div class="word-bank-item" onclick="selectFillOption('${letter}')">
+                                <span class="order-letter">${letter}</span> <div class="option-content">${wrapText(opt.substring(2))}</div>
+                            </div>
+                            <div class="controls-group" style="margin-top:8px;">
+                                <button class="btn-translate-inline" onclick="toggleDisplay('bank-pinyin-${idx}')">Pīnyīn</button>
+                                <button class="btn-translate-inline" onclick="toggleDisplay('bank-trans-${idx}')">A/文 Tradução</button>
+                            </div>
+                            <div class="pinyin-display" id="bank-pinyin-${idx}">${q.optionsBankPinyin[idx]}</div>
+                            <div class="translation-display" id="bank-trans-${idx}">${q.optionsBankTrans[idx]}</div>
+                        </div>
+                    `;
+                });
+                bankHtml += `</div>`;
+                ui.dynamicOptions.innerHTML = bankHtml;
+                
+                setTimeout(() => {
+                    const placeholder = document.getElementById('fill-placeholder');
+                    if (placeholder && userAnswers[currentIndex]) {
+                        placeholder.innerText = userAnswers[currentIndex];
+                        if (isChecked) {
+                            if (userAnswers[currentIndex] === q.correctAnswer) {
+                                placeholder.classList.add('is-correct');
+                            } else {
+                                placeholder.classList.add('is-incorrect');
+                            }
+                        } else {
+                            placeholder.style.backgroundColor = 'rgba(2, 132, 199, 0.1)';
+                        }
+                    }
+                }, 10);
+
+            } else if (q.type === 'order') {
+                let orderHtml = `<div class="ordering-options">`;
+                let selectedArr = userAnswers[currentIndex] ? userAnswers[currentIndex].split('') : [];
+                
+                ['A', 'B', 'C'].forEach((letter, idx) => {
+                    let isSel = selectedArr.includes(letter);
+                    let stateClass = '';
+                    if (isChecked) stateClass = 'locked ';
+                    
+                    orderHtml += `
+                        <div class="option-wrapper ${isSel ? 'selected' : ''} ${stateClass}">
+                            <div class="order-item" onclick="selectOrderOption('${letter}')">
+                                <span class="order-letter">${letter}</span>
+                                <div class="option-content">${wrapText(q.options[letter].c)}</div>
+                            </div>
+                            <div class="controls-group" style="margin-top:8px;">
+                                <button class="btn-translate-inline" onclick="toggleDisplay('order-pinyin-${idx}')">Pīnyīn</button>
+                                <button class="btn-translate-inline" onclick="toggleDisplay('order-trans-${idx}')">A/文 Tradução</button>
+                            </div>
+                            <div class="pinyin-display" id="order-pinyin-${idx}">${q.options[letter].p}</div>
+                            <div class="translation-display" id="order-trans-${idx}">${q.options[letter].t}</div>
+                        </div>
+                    `;
+                });
+                orderHtml += `</div>
+                <div class="order-sequence">
+                    <strong>Sua resposta:</strong>`;
+                    
+                let correctArr = q.correctAnswer.split('');
+                for(let i=0; i<3; i++) {
+                    let sqClass = '';
+                    if (isChecked && selectedArr[i]) {
+                        if (selectedArr[i] === correctArr[i]) sqClass = 'is-correct';
+                        else sqClass = 'is-incorrect';
+                    }
+                    orderHtml += `<div class="seq-box ${selectedArr[i] ? 'filled' : ''} ${sqClass}" id="sq-${i}">${selectedArr[i] || ''}</div>`;
+                }
+                
+                orderHtml += `${!isChecked ? `<button class="btn-reset-small" onclick="clearOrder()">Limpar Ordem</button>` : ''}
+                </div>`;
+                
+                ui.dynamicOptions.innerHTML = orderHtml;
+                ui.btnCheck.disabled = selectedArr.length < 3 || isChecked;
+
+            } else if (q.type === 'mcq') {
+                let mcqHtml = `<div class="mcq-container">`;
+                q.options.forEach((opt, idx) => {
+                    let isSel = (userAnswers[currentIndex] === idx) ? 'selected' : '';
+                    let stateClass = '';
+                    if (isChecked) {
+                        stateClass = 'locked ';
+                        if (idx === q.correctAnswer) stateClass += 'is-correct';
+                        else if (userAnswers[currentIndex] === idx) stateClass += 'is-incorrect';
+                    }
+                    mcqHtml += `
+                        <div class="option-wrapper ${isSel} ${stateClass}">
+                            <div class="mcq-option" onclick="selectMcqOption(${idx})">
+                                <span class="order-letter">${opt.substring(0, 1)}</span>
+                                <div class="option-content">${wrapText(opt.substring(2))}</div>
+                            </div>
+                            <div class="controls-group" style="margin-top:8px;">
+                                <button class="btn-translate-inline" onclick="toggleDisplay('opts-pinyin-${idx}')">Pīnyīn</button>
+                                <button class="btn-translate-inline" onclick="toggleDisplay('opts-trans-${idx}')">A/文 Tradução</button>
+                            </div>
+                            <div class="pinyin-display" id="opts-pinyin-${idx}">${q.optionsPinyin[idx]}</div>
+                            <div class="translation-display" id="opts-trans-${idx}">${q.optionsTrans[idx]}</div>
+                        </div>
+                    `;
+                });
+                mcqHtml += `</div>`;
+                ui.dynamicOptions.innerHTML = mcqHtml;
+            }
+
+            ui.expDisplay.innerHTML = `<h4>Explicação:</h4>${q.explanation}`;
+        }
+
+        // --- INTERACTION LOGIC ---
+        window.selectFillOption = function(letter) {
+            if (checkedAnswers[currentIndex]) return;
+            userAnswers[currentIndex] = letter;
+            renderQuestionScreen(questionsData[currentIndex]); 
+        }
+
+        window.selectOrderOption = function(letter) {
+            if (checkedAnswers[currentIndex]) return;
+            let current = userAnswers[currentIndex] ? userAnswers[currentIndex].split('') : [];
+            if (current.length < 3 && !current.includes(letter)) {
+                current.push(letter);
+                userAnswers[currentIndex] = current.join('');
+                renderQuestionScreen(questionsData[currentIndex]);
+            }
+        }
+
+        window.clearOrder = function() {
+            if (checkedAnswers[currentIndex]) return;
+            userAnswers[currentIndex] = null;
+            renderQuestionScreen(questionsData[currentIndex]);
+        }
+
+        window.selectMcqOption = function(idx) {
+            if (checkedAnswers[currentIndex]) return;
+            userAnswers[currentIndex] = idx;
+            renderQuestionScreen(questionsData[currentIndex]);
+        }
+
+        function checkAnswer() {
+            if (checkedAnswers[currentIndex]) return;
+            checkedAnswers[currentIndex] = true;
+            renderQuestionScreen(questionsData[currentIndex]); 
+        }
+
+        ui.btnExplanation.onclick = () => {
+            ui.expDisplay.style.display = 'block';
+            ui.btnExplanation.style.display = 'none';
+        };
+
+        function renderResults() {
+            ui.introScreen.style.display = 'none';
+            ui.questionScreen.style.display = 'none';
+            ui.navigationBar.style.display = 'none';
+            ui.resultsScreen.style.display = 'flex';
+            
+            ui.progress.innerText = "Finalizado";
+            ui.part.innerText = "Resultados";
+
+            let correctCount = 0;
+            let totalQs = 0;
+            let listHtml = "";
+
+            questionsData.forEach((q, index) => {
+                if (q.type === 'intro') return;
+                
+                totalQs++;
+                let statusClass = "unanswered";
+                let statusIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-gold);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> <span style="color:var(--color-gold);">Não respondida</span>`;
+                
+                if (checkedAnswers[index] || userAnswers[index] !== null) {
+                    if (userAnswers[index] === q.correctAnswer) {
+                        correctCount++;
+                        statusClass = "correct";
+                        statusIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-correct);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> <span style="color:var(--color-correct);">Correto</span>`;
+                    } else {
+                        statusClass = "incorrect";
+                        statusIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-incorrect);"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> <span style="color:var(--color-incorrect);">Errado</span>`;
+                    }
+                }
+
+                let correctAnsText = q.correctAnswer;
+                if (q.type === 'mcq') {
+                    correctAnsText = q.options[q.correctAnswer];
+                }
+
+                listHtml += `
+                    <div class="result-item ${statusClass}">
+                        <div style="font-size: 16px; font-weight: bold; color: var(--text-main);">Questão ${q.id}</div>
+                        <div style="color: var(--text-muted); font-size: 14px;">Gabarito: <strong style="color: var(--color-primary);">${correctAnsText}</strong></div>
+                        <div class="result-icon" style="font-size: 15px; font-weight:bold;">${statusIcon}</div>
+                    </div>
+                `;
+            });
+
+            ui.resultsScore.innerText = `${correctCount} / ${totalQs}`;
+            let percentage = Math.round((correctCount / totalQs) * 100);
+            ui.resultsPercentage.innerText = `${percentage}% de aproveitamento`;
+            ui.resultsList.innerHTML = listHtml;
+        }
+
+        // --- TOOLTIP LOGIC ---
+        function showTooltip(e, word, type) {
+            let data = wordsDict[word] || charDict[word];
+            if (!data) data = { p: "...", t: "N/A" };
+            
+            if (type === 'left') {
+                ui.ttPinyin.innerText = data.p;
+                ui.ttPinyin.style.display = 'block';
+                ui.ttTrans.innerText = data.t;
+                
+                ui.ttCharsBlock.innerHTML = '';
+                if (word.length > 1) {
+                    for (let i = 0; i < word.length; i++) {
+                        let c = word[i];
+                        let cData = charDict[c] || {p:"...", t:"N/A"};
+                        ui.ttCharsBlock.innerHTML += `
+                            <div class="tt-char-item">
+                                <strong>${c}</strong> <span>(${cData.p})</span> - ${cData.t}
+                            </div>
+                        `;
+                    }
+                }
+            } else if (type === 'right') {
+                ui.ttPinyin.style.display = 'none';
+                ui.ttTrans.innerText = data.t;
+                ui.ttCharsBlock.innerHTML = ''; 
+            }
+
+            const x = e.clientX;
+            const y = e.clientY;
+            
+            let leftPos = x + 15;
+            let topPos = y + 15;
+            
+            ui.tooltip.style.display = 'block';
+            const ttRect = ui.tooltip.getBoundingClientRect();
+            
+            if (leftPos + ttRect.width > window.innerWidth) leftPos = x - ttRect.width - 15;
+            if (topPos + ttRect.height > window.innerHeight) topPos = y - ttRect.height - 15;
+
+            ui.tooltip.style.left = `${leftPos}px`;
+            ui.tooltip.style.top = `${topPos}px`;
+        }
+
+        function hideTooltip() { ui.tooltip.style.display = 'none'; }
+
+        // --- EVENT LISTENERS ---
+        ui.btnStartPart.onclick = () => { currentIndex++; renderView(); hideTooltip(); };
+        ui.btnPrev.onclick = () => { if (currentIndex > 0) { currentIndex--; renderView(); hideTooltip(); } };
+        ui.btnNext.onclick = () => { currentIndex++; renderView(); hideTooltip(); };
+        ui.btnCheck.onclick = checkAnswer;
+        
+        ui.togglePanelBtn.onclick = () => {
+            ui.leftPanel.classList.toggle('collapsed');
+        };
+
+        document.querySelector('.simulator-wrapper').addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('char-interactive')) {
+                const word = e.target.getAttribute('data-word');
+                if (e.button === 0) showTooltip(e, word, 'left');
+                else if (e.button === 2) showTooltip(e, word, 'right');
+            } else {
+                hideTooltip();
+            }
+        });
+
+        document.querySelector('.simulator-wrapper').addEventListener('contextmenu', (e) => {
+            if (e.target.classList.contains('char-interactive')) e.preventDefault();
+        });
+
+        ui.btnInfo.onclick = () => ui.modalInfo.style.display = 'flex';
+        ui.btnCloseModal.onclick = () => ui.modalInfo.style.display = 'none';
+        ui.interactionArea.addEventListener('scroll', hideTooltip);
+
+        // Start
+        renderView();
+
+    </script>
+</body>
+</html>
